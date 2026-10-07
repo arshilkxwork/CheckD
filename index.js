@@ -104,6 +104,9 @@ app.get("/me",authenticateToken,async(req,res)=>{
     }
 })
 
+app.post("/create-nudges",(req,res)=>{
+    
+})
 
 app.listen(3000,()=>{
     console.log("server is running on port 3000")
