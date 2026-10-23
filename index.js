@@ -1,15 +1,30 @@
+require("dotenv").config();
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const cors = require("cors");
 const pool = require("./db");
 
+if (!process.env.JWT_SECRET) {
+    console.error("FATAL: JWT_SECRET environment variable is missing.");
+    process.exit(1);
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || "checkd-jwt-secret-key-2026";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 app.use(cors());
 app.use(express.json());
+
+app.get("/health", async (req, res) => {
+    try {
+        await pool.query("SELECT 1");
+        return res.status(200).json({ status: "ok" });
+    } catch (err) {
+        return res.status(503).json({ status: "error", error: "Database unreachable" });
+    }
+});
 
 // ─── Formatters & Helpers ───────────────────────────────────────────────────
 
@@ -209,9 +224,6 @@ const authenticateOptionalToken = (req, res, next) => {
 
 // ─── Health & Test ──────────────────────────────────────────────────────────
 
-app.get("/health", (req, res) => {
-    res.json({ status: "healthy", service: "CheckD Backend", timestamp: new Date().toISOString() });
-});
 
 app.get("/db-test", async (req, res) => {
     try {
@@ -277,13 +289,7 @@ app.post("/login", async (req, res) => {
             isMatch = false;
         }
 
-        // Support existing plaintext passwords if any, and upgrade them to bcrypt
-        if (!isMatch && (password === userRow.password || userRow.password === "mysecretpassword")) {
-            isMatch = true;
-            const newSalt = await bcrypt.genSalt(10);
-            const newHash = await bcrypt.hash(password, newSalt);
-            await pool.query("UPDATE users SET password = $1 WHERE id = $2", [newHash, userRow.id]).catch(() => {});
-        }
+
 
         if (!isMatch) {
             return res.status(400).json({ error: "Invalid credentials" });
@@ -1260,6 +1266,10 @@ app.post("/routines/apply", authenticateOptionalToken, async (req, res) => {
 
 // ─── Start Server ───────────────────────────────────────────────────────────
 
-app.listen(PORT, () => {
-    console.log(`CheckD server is running on port ${PORT}`);
-});
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`CheckD server is running on port ${PORT}`);
+    });
+}
+
+module.exports = app;
