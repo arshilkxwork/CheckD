@@ -1,9 +1,16 @@
-const {Pool} = require("pg");
+require("dotenv").config();
+const { Pool } = require("pg");
 
-const pool = new Pool({
-    user: "arshiloffcampus",
-    host:"localhost",
-    database:"checkd_db",
-    port:5432
-})
-module.exports = pool
+const poolConfig = {
+    connectionString: process.env.DATABASE_URL || "postgresql://arshiloffcampus@localhost:5432/checkd_db"
+};
+
+if (process.env.DATABASE_SSL === "true") {
+    poolConfig.ssl = {
+        rejectUnauthorized: false
+    };
+}
+
+const pool = new Pool(poolConfig);
+
+module.exports = pool;
